@@ -79,7 +79,7 @@ void doit(int fd){
       return;
     }
     // 문제 11.11: Tiny를 확장해서 HTTP HEAD 메소드를 지원하도록 하라. TELENT를 웹 클라이언트로 사용해 작업 결과 체크
-    serve_static(fd, filename,sbuf.st_size,method);
+    serve_static(fd, filename,sbuf.st_size);
     serve_static(fd, filename,sbuf.st_size,method);
   }
   else {

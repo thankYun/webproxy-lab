@@ -12,13 +12,9 @@
 void doit(int fd);
 void read_requesthdrs(rio_t *rp);
 int parse_uri(char *uri, char *filename, char *cgiargs);
-// 문제 11.11: Tiny를 확장해서 HTTP HEAD 메소드를 지원하도록 하라. TELENT를 웹 클라이언트로 사용해 작업 결과 체크
-// void serve_static(int fd, char *filename, int filesize);
-void serve_static(int fd, char *filename, int filesize, char *method);
+void serve_static(int fd, char *filename, int filesize);
 void get_filetype(char *filename, char *filetype);
-// 문제 11.11: Tiny를 확장해서 HTTP HEAD 메소드를 지원하도록 하라. TELENT를 웹 클라이언트로 사용해 작업 결과 체크
-// void serve_dynamic(int fd, char *filename, char *cgiargs);
-void serve_dynamic(int fd, char *filename, char *cgiargs, char *method);
+void serve_dynamic(int fd, char *filename, char *cgiargs);
 void clienterror(int fd, char *cause, char *errnum, char *shortmsg, char *longmsg);
 
 int main(int argc, char **argv) {
@@ -58,9 +54,7 @@ void doit(int fd){
   printf("Request headers: \n");
   printf("%s",buf);
   sscanf(buf, "%s %s %s",method, uri, version);
-  // 문제 11.11: Tiny를 확장해서 HTTP HEAD 메소드를 지원하도록 하라. TELENT를 웹 클라이언트로 사용해 작업 결과 체크
-  // if (strcasecmp(method, "GET")) {
-  if(!(strcasecmp(method, "GET") == 0 || strcasecmp(method, "HEAD") == 0)) {
+  if (strcasecmp(method, "GET")) {
     clienterror(fd, method, "501", "NOT implemented", "Tiny does not implement this method");
     return;
   }
@@ -78,21 +72,16 @@ void doit(int fd){
       clienterror(fd,filename, "403", "Forbidden", "Tiny couldn't read the program");
       return;
     }
-    // 문제 11.11: Tiny를 확장해서 HTTP HEAD 메소드를 지원하도록 하라. TELENT를 웹 클라이언트로 사용해 작업 결과 체크
-    serve_static(fd, filename,sbuf.st_size,method);
-    serve_static(fd, filename,sbuf.st_size,method);
+    serve_static(fd, filename,sbuf.st_size);
   }
   else {
     if (!(S_ISREG(sbuf.st_mode)) ||  !(S_IXUSR & sbuf.st_mode)){
       clienterror(fd, filename, "403", "Forbidden", "Tiny couldn't run the CGI program");
       return;
-    // 문제 11.11: Tiny를 확장해서 HTTP HEAD 메소드를 지원하도록 하라. TELENT를 웹 클라이언트로 사용해 작업 결과 체크
-    // serve_dynamic(fd, filename, cgiargs);
-    serve_dynamic(fd, filename, cgiargs, method);
     }
+    serve_dynamic(fd, filename, cgiargs);
   }
 }
-
 
 void clienterror(int fd, char *cause, char *errnum, char *shortmsg, char *longmsg){
   char buf[MAXLINE] , body[MAXBUF];
@@ -145,16 +134,15 @@ int parse_uri(char *uri, char *filename, char *cgiargs){
     }
     else
       strcpy(cgiargs, "");
-      strcpy(filename, ".");
-      strcat(filename, uri);
+    strcpy(filename, ".");
+    strcat(filename, uri);
     return 0;
   }
 }
   
 
-// 문제 11.11: Tiny를 확장해서 HTTP HEAD 메소드를 지원하도록 하라. TELENT를 웹 클라이언트로 사용해 작업 결과 체크
-// void serve_static(int fd, char *filename, int filesize){
-void serve_static(int fd, char *filename, int filesize, char *method){
+
+void serve_static(int fd, char *filename, int filesize){
   int srcfd;
   char *srcp, filetype[MAXLINE], buf[MAXBUF];
 
@@ -168,17 +156,17 @@ void serve_static(int fd, char *filename, int filesize, char *method){
   Rio_writen(fd, buf, strlen(buf));
   printf("Respinse headers:\n");
   printf("%s",buf);
-  // 문제 11.11: Tiny를 확장해서 HTTP HEAD 메소드를 지원하도록 하라. TELENT를 웹 클라이언트로 사용해 작업 결과 체크
-  if(strcasecmp(method, "HEAD")==0)
-    return;
-  // /*응답의 바디를 클라이언트로 보내기*/
-  srcfd = Open(filename, O_RDONLY, 0);
-  srcp = Mmap(0, filesize, PROT_READ, MAP_PRIVATE, srcfd, 0);
+
+  /*응답의 바디를 클라이언트로 보내기*/
+  srcfd=Open(filename, O_RDONLY, 0);
+  //  srcp = Mmap(0, filesize, PROT_READ, MAP_PRIVATE, srcfd, 0);
+  srcp = (char *)Malloc(filesize);
   Close(srcfd);
   Rio_writen(fd, srcp, filesize);
-  Munmap(srcp, filesize);
-}
+  free(srcp);
+  // Munmap(srcp, filesize);
   
+}
 
 /**
  * get_filetype - 파일 이름에서 파일 유형 파생
@@ -204,7 +192,7 @@ void get_filetype( char *filename, char *filetype){
     strcpy(filetype, "text/plain");
 }
 
-void serve_dynamic(int fd, char *filename, char *cgiargs, char *method){
+void serve_dynamic(int fd, char *filename, char *cgiargs){
   char buf[MAXLINE], *emptylist[] = { NULL };
 
   /*HTTP의 응답의 첫번째 부분 반환*/
@@ -215,8 +203,6 @@ void serve_dynamic(int fd, char *filename, char *cgiargs, char *method){
 
   if (Fork() == 0) { /*child*/
   /*실제 서버는 여기에 모든 CGI 변수를 설정함*/
-    setenv("QUERY_STRING", cgiargs, 1);
-    // 11.11
     setenv("QUERY_STRING", cgiargs, 1);
     Dup2(fd, STDOUT_FILENO);    //표준 출력을 클라이언트로 리디렉션 - 리디렉션은 사용자와 검색 엔진을 하나의 연결된 앵커에서 다른 URL로 보내는 방법입니다.
     Execve(filename, emptylist, environ); /*Run CGI program*/
