@@ -1,5 +1,8 @@
 #include "csapp.h"
-
+/**
+ * 텍스트 줄을 읽고 다시 돌려주는 함수
+ * @param connfd 서버 연결 식별자
+*/
 void echo(int connfd){
     size_t n;
     char buf[MAXLINE];
@@ -11,3 +14,5 @@ void echo(int connfd){
         Rio_writen(connfd,buf,n);
     }
 }
+
+//todo RIO함수 공부 후 추가 기술

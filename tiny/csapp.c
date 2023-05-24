@@ -1043,9 +1043,10 @@ int open_listenfd(char *port)
 }
 /* $end open_listenfd */
 
-/****************************************************
- * Wrappers for reentrant protocol-independent helpers
- ****************************************************/
+/**
+ * 서버와 연결을 설정하는 도움함수,
+ * 리스트를 방문하며 소켓- 커넥트의 호출이 성공할 때까지 반복하며 성공 시 소켓 식별자를 클라이언트에 반환한다.
+*/
 int Open_clientfd(char *hostname, char *port) 
 {
     int rc;
@@ -1054,7 +1055,10 @@ int Open_clientfd(char *hostname, char *port)
 	unix_error("Open_clientfd error");
     return rc;
 }
-
+/**
+ * 듣기 식별자를 오픈하고 리턴하는 도움함수
+ * 포트에 연결 요청을 받을 준비가 된 듣기 식별자를 리턴
+*/
 int Open_listenfd(char *port) 
 {
     int rc;
